@@ -23,7 +23,7 @@ using SO2f = SO2<float>;
 namespace Eigen {
 namespace internal {
 
-template <class Scalar_, int Options_>
+template <class Scalar_, int Options_>  // Options_是Eigen中的位字段，是RowMajor/ColMajor和AutoAlign/DontAlign的组合
 struct traits<Sophus::SO2<Scalar_, Options_>> {
   static constexpr int Options = Options_;
   using Scalar = Scalar_;
@@ -75,6 +75,12 @@ namespace Sophus {
 /// Technically speaking, it must hold that:
 ///
 ///   ``|unit_complex().squaredNorm() - 1| <= Constants::epsilon()``.
+
+/*
+ * Sophus使用单位复数来存储SO(2). SO(2)在向量空间的表示为theta \in R^1,
+ * 对应的单位复数为[cos(theta) sin(theta)]'。
+ */
+
 template <class Derived>
 class SO2Base {
  public:
@@ -303,7 +309,7 @@ class SO2Base {
   }
 
   /// Returns derivative of  this * SO2::exp(x)  wrt. x at x=0.
-  ///
+  /// exp(x) = [cos(theta) sin(theta)]’，该函数为 d exp(x) / d x
   SOPHUS_FUNC Matrix<Scalar, num_parameters, DoF> Dx_this_mul_exp_x_at_0()
       const {
     return Matrix<Scalar, num_parameters, DoF>(-unit_complex()[1],
@@ -440,6 +446,7 @@ class SO2 : public SO2Base<SO2<Scalar_, Options>> {
   /// with ``expmat(.)`` being the matrix exponential and ``hat(.)`` being the
   /// hat()-operator of SO(2).
   ///
+  // 这里的exp(theta)直接返回了一个（以单位复数存储的）SO(2)对象
   SOPHUS_FUNC static SO2<Scalar> exp(Tangent const& theta) {
     using std::cos;
     using std::sin;
@@ -448,6 +455,7 @@ class SO2 : public SO2Base<SO2<Scalar_, Options>> {
 
   /// Returns derivative of exp(x) wrt. x.
   ///
+  // 这里的exp(x)又不使用SO(2)的exp（旋转矩阵），而是使用单位复数表示
   SOPHUS_FUNC static Sophus::Matrix<Scalar, num_parameters, DoF> Dx_exp_x(
       Tangent const& theta) {
     using std::cos;
@@ -490,6 +498,7 @@ class SO2 : public SO2Base<SO2<Scalar_, Options>> {
   ///
   /// The corresponding inverse is the vee()-operator, see below.
   ///
+  // 这里混淆了单位复数的hat和SO(2)的hat，使用的是SO(2)（旋转矩阵）的hat
   SOPHUS_FUNC static Transformation hat(Tangent const& theta) {
     Transformation Omega;
     // clang-format off

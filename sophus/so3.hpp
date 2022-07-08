@@ -73,6 +73,10 @@ namespace Sophus {
 /// Technically speaking, it must hold that:
 ///
 ///   ``|unit_quaternion().squaredNorm() - 1| <= Constants::epsilon()``.
+
+/*
+ * SO(3)，内部使用单位四元数存储
+ */
 template <class Derived>
 class SO3Base {
  public:
@@ -250,8 +254,8 @@ class SO3Base {
     using std::abs;
     using std::atan2;
     using std::sqrt;
-    Scalar squared_n = unit_quaternion().vec().squaredNorm();
-    Scalar w = unit_quaternion().w();
+    Scalar squared_n = unit_quaternion().vec().squaredNorm(); // 虚部的模长平方
+    Scalar w = unit_quaternion().w(); // 实部
 
     Scalar two_atan_nbyw_by_n;
 
@@ -286,11 +290,11 @@ class SO3Base {
       //
       Scalar atan_nbyw =
           (w < Scalar(0)) ? Scalar(atan2(-n, -w)) : Scalar(atan2(n, w));
-      two_atan_nbyw_by_n = Scalar(2) * atan_nbyw / n;
+      two_atan_nbyw_by_n = Scalar(2) * atan_nbyw / n;   // 四元数转旋转向量（的角度）的公式
       J.theta = two_atan_nbyw_by_n * n;
     }
 
-    J.tangent = two_atan_nbyw_by_n * unit_quaternion().vec();
+    J.tangent = two_atan_nbyw_by_n * unit_quaternion().vec(); // 转轴
     return J;
   }
 
@@ -572,8 +576,7 @@ class SO3 : public SO3Base<SO3<Scalar_, Options>> {
       Scalar const half_theta = Scalar(0.5) * theta;
 
       V_inv = Matrix3<Scalar>::Identity() - Scalar(0.5) * Omega +
-              (Scalar(1) -
-               Scalar(0.5) * theta * cos(half_theta) / sin(half_theta)) /
+              (Scalar(1) - Scalar(0.5) * theta * cos(half_theta) / sin(half_theta)) /
                   (theta * theta) * (Omega * Omega);
     }
     return V_inv;

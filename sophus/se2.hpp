@@ -54,6 +54,16 @@ namespace Sophus {
 ///
 /// See SO2Group for more details of the rotation representation in 2d.
 ///
+
+/*
+ * Sophus使用单位复数 + t \in R^2来存储SE(2). 而不是存储rho。但在一些计算中，又需要用到rho，或者要求传入rho。
+ * 说实话，我觉得Sophus这样存储SO(2)并依次提供的函数并不实用，大部分人更愿意就用一个theta来表示，又没有歧义。
+ * 以theta作为基础，分开提供S1群和SO(2)群，这样肯定更加清晰。而且优化上也好麻烦，变成了一个带约束的问题。
+ * SE(2)也是的，大家都会用[t_x, t_y, theta]来表达。Sophus以t来存储平移，部分求导使用t。但一些函数，如Dx_exp_x又要求别人
+ * 传入rho，虽然这确实是SE(2)的元素，但让人看起来很不舒服，不够统一。
+ * 这些基本就没办法用，除非你整套的参数表达就使用Sophus。如果你使用自己的表达，那么只会使用Sophus的一些转换参数，如exp等。
+ */
+
 template <class Derived>
 class SE2Base {
  public:
@@ -121,6 +131,8 @@ class SE2Base {
 
   /// Returns derivative of  this * exp(x)  wrt x at x=0.
   ///
+  // this * exp(x) = T1 * T2，得到[cos(t_this + t_x), sin(t_this + t_x), cos(t_this) x_x - sin(t_this) x_y + x_this, sin(t_this) x_x + cos(t_this) x_y + y_this]
+  // 然后对x求导，再让x为0，即可得到下面的矩阵
   SOPHUS_FUNC Matrix<Scalar, num_parameters, DoF> Dx_this_mul_exp_x_at_0()
       const {
     Matrix<Scalar, num_parameters, DoF> J;
@@ -131,9 +143,9 @@ class SE2Base {
     J(0, 2) = -c[1];
     J(1, 0) = o;
     J(1, 1) = o;
-    J(1, 2) = c[0];
-    J(2, 0) = c[0];
-    J(2, 1) = -c[1];
+    J(1, 2) = c[0];   
+    J(2, 0) = c[0];   
+    J(2, 1) = -c[1];  
     J(2, 2) = o;
     J(3, 0) = c[1];
     J(3, 1) = c[0];
@@ -495,7 +507,8 @@ class SE2 : public SE2Base<SE2<Scalar_, Options>> {
   }
 
   /// Returns derivative of exp(x) wrt. x.
-  ///
+  /// SE(2)的存储方式为单位复数+rho，exp(x) = [cos(theta), sin(theta), (V(theta) * rho)']', x = [rho_x, rho_y, theta]'
+  /// 该函数即为exp(x)对x的求导
   SOPHUS_FUNC static Sophus::Matrix<Scalar, num_parameters, DoF> Dx_exp_x(
       Tangent const& upsilon_theta) {
     using std::abs;
@@ -572,12 +585,13 @@ class SE2 : public SE2Base<SE2<Scalar_, Options>> {
   /// returns the corresponding element of the group SE(2).
   ///
   /// The first two components of ``a`` represent the translational part
-  /// ``upsilon`` in the tangent space of SE(2), while the last three components
+  /// ``upsilon`` in the tangent space of SE(2), while the last component
   /// of ``a`` represents the rotation vector ``omega``.
   /// To be more specific, this function computes ``expmat(hat(a))`` with
   /// ``expmat(.)`` being the matrix exponential and ``hat(.)`` the hat-operator
   /// of SE(2), see below.
   ///
+  // 这个函数比较有用，讲se(2)向量空间的向量转化为SE(2)中的元素，入参a = [rho_x, rho_y, theta]'.
   SOPHUS_FUNC static SE2<Scalar> exp(Tangent const& a) {
     Scalar theta = a[2];
     SO2<Scalar> so2 = SO2<Scalar>::exp(theta);
@@ -645,7 +659,7 @@ class SE2 : public SE2Base<SE2<Scalar_, Options>> {
   ///
   /// Formally, the hat()-operator of SE(3) is defined as
   ///
-  ///   ``hat(.): R^3 -> R^{3x33},  hat(a) = sum_i a_i * G_i``  (for i=0,1,2)
+  ///   ``hat(.): R^3 -> R^{3x3},  hat(a) = sum_i a_i * G_i``  (for i=0,1,2)
   ///
   /// with ``G_i`` being the ith infinitesimal generator of SE(2).
   ///
